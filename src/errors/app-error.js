@@ -27,4 +27,10 @@ class ConflictError extends AppError {
   }
 }
 
-module.exports = { AppError, ValidationError, NotFoundError, ConflictError };
+class ForbiddenError extends AppError {
+  constructor(message = 'Forbidden', code = 'FORBIDDEN') {
+    super(message, { code, statusCode: 403 });
+  }
+}
+
+module.exports = { AppError, ValidationError, NotFoundError, ConflictError, ForbiddenError };

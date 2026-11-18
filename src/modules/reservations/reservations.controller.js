@@ -20,7 +20,7 @@ function createReservationsController(service) {
       return res.location(location).status(201).json(toReservationResponse(reservation));
     },
     cancel: async (req, res) => {
-      const reservation = await service.cancel(req.validated.params.id);
+      const reservation = await service.cancel(req.validated.params.id, req.user);
       return res.json(toReservationResponse(reservation));
     },
   };
