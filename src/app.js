@@ -16,6 +16,8 @@ const { createAuthController } = require('./modules/auth/auth.controller');
 const { createAuthRouter } = require('./modules/auth/auth.routes');
 const defaultMemoryUsersRepo = require('./modules/auth/auth.repository.memory');
 const { requireAuth } = require('./modules/auth/auth.middleware');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./docs/swagger');
 
 function createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo = defaultMemoryUsersRepo }) {
   if (!buildingsRepo || !roomsRepo || !reservationsRepo) {
@@ -24,6 +26,7 @@ function createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo = def
   const app = express();
   app.use(requestLogger);
   app.use(express.json());
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.use('/api/auth', createAuthRouter(createAuthController(createAuthService(usersRepo))));
   app.use((req, res, next) => (req.path === '/api/docs' || req.path.startsWith('/api/docs/'))
     ? next()
