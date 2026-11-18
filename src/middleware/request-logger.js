@@ -7,13 +7,15 @@ function requestLogger(req, res, next) {
   res.setHeader('X-Request-Id', req.id);
   res.on('finish', () => {
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
-    console.log(JSON.stringify({
-      requestId: req.id,
-      method: req.method,
-      url: req.originalUrl,
-      statusCode: res.statusCode,
-      durationMs: Number(durationMs.toFixed(2)),
-    }));
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(JSON.stringify({
+        requestId: req.id,
+        method: req.method,
+        url: req.originalUrl,
+        statusCode: res.statusCode,
+        durationMs: Number(durationMs.toFixed(2)),
+      }));
+    }
   });
   next();
 }

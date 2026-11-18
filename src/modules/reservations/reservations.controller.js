@@ -10,7 +10,7 @@ function createReservationsController(service) {
       });
     },
     get: async (req, res) => {
-      const reservation = await service.get(req.validated.params.id);
+      const reservation = await service.get(req.validated.params.id, req.user);
       if (!reservation) throw new NotFoundError('Reservation not found', 'RESERVATION_NOT_FOUND');
       return res.json(toReservationResponse(reservation));
     },

@@ -13,4 +13,10 @@ module.exports = {
     migrations: { directory: './src/db/migrations' },
     seeds: { directory: './src/db/seeds' },
   },
+  test: {
+    client: 'pg',
+    connection: process.env.TEST_DATABASE_URL || connection.replace(/\/room_booking(\?|$)/, '/room_booking_test$1'),
+    migrations: { directory: './src/db/migrations' },
+    seeds: { directory: './src/db/seeds' },
+  },
 };

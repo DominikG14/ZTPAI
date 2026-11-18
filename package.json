@@ -8,8 +8,9 @@
     "db:migrate": "knex migrate:latest",
     "db:rollback": "knex migrate:rollback",
     "seed:run": "knex seed:run",
-    "test": "jest",
-    "test:unit": "jest"
+    "test": "jest --runInBand",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "jest": "^30.5.2"
+    "jest": "^30.5.2",
+    "supertest": "^7.3.2"
   }
 }

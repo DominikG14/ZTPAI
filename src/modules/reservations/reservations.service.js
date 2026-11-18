@@ -15,7 +15,18 @@ function createReservationsService({ reservationRepository, now = () => new Date
 
   return {
     list: (filters) => reservationRepository.findAll(filters),
-    get: (id) => reservationRepository.findById(id),
+    get: async (id, user) => {
+      const reservation = await reservationRepository.findById(id);
+      if (!reservation) return null;
+      if (user) {
+        const userRole = user.role || 'USER';
+        const currentUserId = Number(user.id !== undefined ? user.id : user);
+        if (userRole !== 'ADMIN' && Number(reservation.userId) !== currentUserId) {
+          return null;
+        }
+      }
+      return reservation;
+    },
     create: async (data, userId) => {
       const nowMs = getNow().getTime();
       const startMs = new Date(data.startTime).getTime();
