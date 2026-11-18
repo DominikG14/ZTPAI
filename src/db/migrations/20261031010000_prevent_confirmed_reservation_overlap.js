@@ -1,0 +1,18 @@
+/** @param {import('knex').Knex} knex */
+exports.up = async function up(knex) {
+  await knex.raw('CREATE EXTENSION IF NOT EXISTS btree_gist');
+  await knex.raw(`
+    ALTER TABLE reservations
+    ADD CONSTRAINT reservations_no_confirmed_overlap
+    EXCLUDE USING gist (
+      room_id WITH =,
+      tstzrange(start_time, end_time, '[)') WITH &&
+    )
+    WHERE (status = 'CONFIRMED')
+  `);
+};
+
+/** @param {import('knex').Knex} knex */
+exports.down = async function down(knex) {
+  await knex.raw('ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_no_confirmed_overlap');
+};
