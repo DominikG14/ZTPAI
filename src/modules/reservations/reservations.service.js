@@ -52,7 +52,7 @@ function createReservationsService({ reservationRepository, eventBus, now = () =
         return create({
           ...data,
           userId: Number(userId),
-          status: 'CANCELLED',
+          status: 'CONFIRMED',
           createdAt: getNow().toISOString(),
           cancelledAt: null,
           internalNote: 'created via API v2',
