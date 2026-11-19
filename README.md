@@ -1,3 +1,5 @@
+[![CI](https://github.com/DominikG14/ZTPAI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DominikG14/ZTPAI/actions/workflows/ci.yml)
+
 # Room Booking API
 
 ## PostgreSQL
