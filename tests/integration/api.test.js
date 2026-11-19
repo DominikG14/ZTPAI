@@ -5,10 +5,12 @@ const { createBuildingsKnexRepository } = require('../../src/modules/buildings/b
 const { createRoomsKnexRepository } = require('../../src/modules/rooms/rooms.repository.knex');
 const { createReservationsKnexRepository } = require('../../src/modules/reservations/reservations.repository.knex');
 const { createAuthKnexRepository } = require('../../src/modules/auth/auth.repository.knex');
+const { createAuditRepository } = require('../../src/modules/audit/audit.repository.knex');
 
 describe('API Integration Tests (PostgreSQL)', () => {
   let testKnex;
   let app;
+  let auditRepo;
 
   beforeAll(async () => {
     const testDbUrl = process.env.TEST_DATABASE_URL || 'postgres://room_booking:room_booking_dev@127.0.0.1:5433/room_booking_test';
@@ -39,7 +41,8 @@ describe('API Integration Tests (PostgreSQL)', () => {
     const reservationsRepo = createReservationsKnexRepository(testKnex);
     const usersRepo = createAuthKnexRepository(testKnex);
 
-    app = createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo });
+    auditRepo = createAuditRepository(testKnex);
+    app = createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo, auditRepo });
   });
 
   afterAll(async () => {
@@ -51,7 +54,7 @@ describe('API Integration Tests (PostgreSQL)', () => {
 
   beforeEach(async () => {
     // Truncate all tables and reset identities before each test
-    await testKnex.raw('TRUNCATE TABLE reservations, rooms, buildings, users RESTART IDENTITY CASCADE');
+    await testKnex.raw('TRUNCATE TABLE audit_log, reservations, rooms, buildings, users RESTART IDENTITY CASCADE');
   });
 
   // Test helpers
@@ -155,6 +158,28 @@ describe('API Integration Tests (PostgreSQL)', () => {
     expect(dbRecord.participants).toBe(10);
     expect(new Date(dbRecord.start_time).toISOString()).toBe('2030-05-10T10:00:00.000Z');
     expect(new Date(dbRecord.end_time).toISOString()).toBe('2030-05-10T11:00:00.000Z');
+  });
+
+  test('błąd listenera audit logu nie zmienia odpowiedzi POST /api/reservations', async () => {
+    const { room } = await seedBuildingAndRoom();
+    const { token } = await registerAndLogin();
+    const auditFailure = jest.spyOn(auditRepo, 'record').mockRejectedValue(new Error('temporary audit failure'));
+    const loggedError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        roomId: room.id,
+        participants: 10,
+        startTime: '2030-05-10T10:00:00.000Z',
+        endTime: '2030-05-10T11:00:00.000Z',
+      });
+
+    expect(res.status).toBe(201);
+    expect(loggedError).toHaveBeenCalledWith(expect.stringContaining('reservation.created'), expect.any(Error));
+    auditFailure.mockRestore();
+    loggedError.mockRestore();
   });
 
   test('3. 400 z poprawnymi details dla błędnego body', async () => {

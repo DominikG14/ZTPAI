@@ -54,6 +54,12 @@ JWT jest podpisany HS256. Payload zawiera `sub` (ID jako tekst), `role`, `iat` i
 
 ## Middleware i rezerwacje użytkownika
 
+## Zdarzenia i audit log
+
+Po zatwierdzeniu transakcji rezerwacji API publikuje `reservation.created` lub `reservation.cancelled`. Błędy listenerów są logowane i nie zmieniają odpowiedzi API. Każdy event jest zapisywany w tabeli `audit_log` jako JSONB. Administrator może pobrać wpisy przez `GET /api/admin/audit-log?eventType=reservation.created&page=1&limit=20`; odpowiedź zawiera `data` i metadane paginacji.
+
+Przy anulowaniu cudzej rezerwacji przez ADMIN-a serwer zapisuje w konsoli powiadomienie z adresem email właściciela.
+
 Każdy endpoint API poza `POST /api/auth/register`, `POST /api/auth/login` i ścieżką `/api/docs` wymaga `Authorization: Bearer <accessToken>`. Brak lub niepoprawny token zwraca `401`; wygasły token zwraca `401 TOKEN_EXPIRED`.
 
 `POST /api/reservations` przyjmuje `roomId`, `participants`, `startTime` i `endTime`. Nie przyjmuje `userId` ani `reservedBy` — właściciel jest ustawiany z uwierzytelnionego tokenu. Odpowiedź zawiera `user: { id, email }`. Seedowane konto użytkownika to `jan.kowalski@example.com` / `User12345!` (konto administratora pozostaje osobne).

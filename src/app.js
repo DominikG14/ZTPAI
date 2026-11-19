@@ -18,8 +18,11 @@ const defaultMemoryUsersRepo = require('./modules/auth/auth.repository.memory');
 const { requireAuth } = require('./modules/auth/auth.middleware');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./docs/swagger');
+const { createEventBus } = require('./events/event-bus');
+const { createAuditRepositoryMemory } = require('./modules/audit/audit.repository.memory');
+const { createAuditRouter } = require('./modules/audit/audit.routes');
 
-function createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo = defaultMemoryUsersRepo }) {
+function createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo = defaultMemoryUsersRepo, auditRepo = createAuditRepositoryMemory(), eventBus = createEventBus() }) {
   if (!buildingsRepo || !roomsRepo || !reservationsRepo) {
     throw new Error('createApp requires building, room, and reservation repositories.');
   }
@@ -31,9 +34,21 @@ function createApp({ buildingsRepo, roomsRepo, reservationsRepo, usersRepo = def
   app.use((req, res, next) => (req.path === '/api/docs' || req.path.startsWith('/api/docs/'))
     ? next()
     : requireAuth(req, res, next));
+  eventBus.on('reservation.created', (payload) => auditRepo.record('reservation.created', payload));
+  eventBus.on('reservation.cancelled', async (payload) => {
+    await auditRepo.record('reservation.cancelled', payload);
+  });
+  eventBus.on('reservation.cancelled', async (payload) => {
+    if (Number(payload.cancelledBy) === Number(payload.userId)) return;
+    const actor = await usersRepo.findById(payload.cancelledBy);
+    if (actor?.role !== 'ADMIN') return;
+    const owner = await usersRepo.findById(payload.userId);
+    if (owner?.email) console.log(`[notification] to: ${owner.email} reservation ${payload.reservationId} was cancelled by ADMIN`);
+  });
+  app.use('/api/admin/audit-log', createAuditRouter(auditRepo));
   app.use('/api/buildings', createBuildingsRouter(createBuildingsController(createBuildingsService(buildingsRepo))));
   app.use('/api/rooms', createRoomsRouter(createRoomsController(createRoomsService(roomsRepo, buildingsRepo))));
-  app.use('/api/reservations', createReservationsRouter(createReservationsController(createReservationsService({ reservationRepository: reservationsRepo }))));
+  app.use('/api/reservations', createReservationsRouter(createReservationsController(createReservationsService({ reservationRepository: reservationsRepo, eventBus }))));
   app.get('/api/debug/crash', (_req, _res) => { throw new Error('boom'); });
   app.use((req, _res, next) => next(new AppError(`Cannot ${req.method} ${req.originalUrl}`, { code: 'NOT_FOUND', statusCode: 404 })));
   app.use(errorHandler);

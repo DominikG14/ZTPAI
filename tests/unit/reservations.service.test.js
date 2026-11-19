@@ -7,6 +7,7 @@ describe('ReservationsService - Unit Tests', () => {
   let roomsRepo;
   let reservationsRepo;
   let service;
+  let eventBus;
 
   beforeEach(() => {
     currentTime = new Date('2026-11-20T09:00:00.000Z');
@@ -19,10 +20,34 @@ describe('ReservationsService - Unit Tests', () => {
       roomsRepository: roomsRepo,
       initialReservations: [],
     });
+    eventBus = { publish: jest.fn().mockResolvedValue(undefined) };
     service = createReservationsService({
       reservationRepository: reservationsRepo,
+      eventBus,
       now: () => currentTime,
     });
+  });
+
+  test('publishes reservation.created after success and does not publish after a failed create', async () => {
+    const payload = {
+      roomId: 1,
+      participants: 10,
+      startTime: '2026-11-20T10:00:00.000Z',
+      endTime: '2026-11-20T11:00:00.000Z',
+    };
+    const created = await service.create(payload, 7);
+    expect(eventBus.publish).toHaveBeenCalledWith('reservation.created', {
+      reservationId: created.id,
+      roomId: 1,
+      userId: 7,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+    });
+
+    eventBus.publish.mockClear();
+    await expect(service.create({ ...payload, startTime: '2026-11-20T10:30:00.000Z' }, 8))
+      .rejects.toMatchObject({ code: 'ROOM_ALREADY_BOOKED' });
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
   describe('Reguła: Nakładanie się rezerwacji (Overlapping)', () => {

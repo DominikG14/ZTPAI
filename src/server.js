@@ -23,7 +23,10 @@ if (process.env.REPOSITORY === 'memory') {
 }
 
 const PORT = Number(process.env.PORT) || 3000;
-const server = createApp(repositories).listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+const auditRepo = process.env.REPOSITORY === 'memory'
+  ? require('./modules/audit/audit.repository.memory').createAuditRepositoryMemory()
+  : require('./modules/audit/audit.repository.knex').createAuditRepository(knexInstance);
+const server = createApp({ ...repositories, auditRepo }).listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 
 let isShuttingDown = false;
 async function gracefulShutdown(signal) {

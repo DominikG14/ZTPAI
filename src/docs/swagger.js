@@ -207,5 +207,21 @@ module.exports = {
         },
       },
     },
+    '/api/admin/audit-log': {
+      get: {
+        summary: 'Lista zdarzeń audytu (tylko ADMIN)',
+        tags: ['Admin'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'eventType', in: 'query', schema: { type: 'string' } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+        ],
+        responses: {
+          200: { description: 'Zdarzenia audytu posortowane od najnowszych' },
+          403: { description: 'Wymagana rola ADMIN' },
+        },
+      },
+    },
   },
 };

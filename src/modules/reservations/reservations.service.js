@@ -1,4 +1,4 @@
-function createReservationsService({ reservationRepository, now = () => new Date() }) {
+function createReservationsService({ reservationRepository, eventBus, now = () => new Date() }) {
   const { NotFoundError, ConflictError, ValidationError, ForbiddenError } = require('../../errors/app-error');
   const allowedTransitions = Object.freeze({
     CONFIRMED: Object.freeze(['CANCELLED']),
@@ -43,7 +43,7 @@ function createReservationsService({ reservationRepository, now = () => new Date
       }
       if (validationDetails.length) throw new ValidationError(validationDetails);
 
-      return reservationRepository.withRoomLock(data.roomId, async ({ room, findConflicts, create }) => {
+      const reservation = await reservationRepository.withRoomLock(data.roomId, async ({ room, findConflicts, create }) => {
         if (!room) throw new NotFoundError('Room not found', 'ROOM_NOT_FOUND');
         if (data.participants > room.capacity) throw new ConflictError('Room capacity exceeded', 'CAPACITY_EXCEEDED');
         if (await findConflicts(data.startTime, data.endTime)) {
@@ -58,6 +58,14 @@ function createReservationsService({ reservationRepository, now = () => new Date
           internalNote: 'created via API v2',
         });
       });
+      if (eventBus) await eventBus.publish('reservation.created', {
+        reservationId: reservation.id,
+        roomId: reservation.roomId,
+        userId: reservation.userId,
+        startTime: reservation.startTime,
+        endTime: reservation.endTime,
+      });
+      return reservation;
     },
     cancel: async (id, user) => {
       const reservation = await reservationRepository.findById(id);
@@ -83,7 +91,14 @@ function createReservationsService({ reservationRepository, now = () => new Date
         throw new ConflictError('A reservation that has already started cannot be cancelled', 'RESERVATION_ALREADY_STARTED');
       }
 
-      return reservationRepository.cancel(id, getNow().toISOString());
+      const cancelled = await reservationRepository.cancel(id, getNow().toISOString());
+      if (eventBus) await eventBus.publish('reservation.cancelled', {
+        reservationId: cancelled.id,
+        roomId: cancelled.roomId,
+        userId: cancelled.userId,
+        cancelledBy: Number(user && user.id !== undefined ? user.id : user),
+      });
+      return cancelled;
     },
   };
 }
